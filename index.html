@@ -1,0 +1,1499 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="p5.js 슬라이더로 Web Serial을 통해 Arduino Uno D9 LED의 밝기(PWM 0~255)를 조절하는 실습. 설계, 시뮬레이션, 연결도, 코드, 검증, 고찰.">
+  <title>p5 슬라이더로 LED 밝기 조절</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b1f3a'/%3E%3Crect x='42' y='10' width='8' height='44' rx='4' fill='%23dbe3ed'/%3E%3Ccircle cx='46' cy='26' r='8' fill='%23f59e0b'/%3E%3Ccircle cx='22' cy='32' r='11' fill='%23ffd23f'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #fbfcfe;
+      --ink: #0b1f3a;
+      --muted: #53647a;
+      --line: #cad7e6;
+      --grid: rgba(46, 111, 178, 0.075);
+      --blue: #1265a8;
+      --blue-soft: #eaf4fd;
+      --red: #e82936;
+      --red-deep: #a90f1e;
+      --red-soft: #ffe8ea;
+      --shadow: 0 18px 50px rgba(11, 31, 58, 0.09);
+      --radius: 18px;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--ink);
+      background-color: var(--paper);
+      background-image:
+        linear-gradient(var(--grid) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+      background-size: 28px 28px;
+      font-family: Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+      font-size: 17px;
+      line-height: 1.75;
+      overflow-wrap: anywhere;
+    }
+
+    a {
+      color: var(--blue);
+      text-underline-offset: 0.2em;
+      text-decoration-thickness: 1px;
+    }
+
+    button,
+    select {
+      font: inherit;
+    }
+
+    button,
+    a,
+    select {
+      outline-offset: 4px;
+    }
+
+    :focus-visible {
+      outline: 3px solid #0b76c5;
+    }
+
+    .page {
+      width: min(1040px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    .site-header {
+      padding: 54px 0 26px;
+      border-bottom: 2px solid var(--ink);
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 18px;
+      color: var(--blue);
+      font-size: 0.85rem;
+      font-weight: 800;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      width: 28px;
+      height: 3px;
+      background: var(--red);
+      content: "";
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin-top: 0;
+    }
+
+    h1 {
+      max-width: 850px;
+      margin-bottom: 20px;
+      font-size: clamp(2.35rem, 7vw, 5rem);
+      line-height: 1.05;
+      letter-spacing: -0.055em;
+    }
+
+    .lead {
+      max-width: 720px;
+      margin-bottom: 0;
+      color: var(--muted);
+      font-size: 1.12rem;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 20px;
+      margin-top: 28px;
+      color: var(--muted);
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    main {
+      padding: 48px 0 100px;
+    }
+
+    section {
+      margin-top: 76px;
+      scroll-margin-top: 20px;
+    }
+
+    section:first-child {
+      margin-top: 0;
+    }
+
+    h2 {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      margin-bottom: 26px;
+      font-size: clamp(1.7rem, 4vw, 2.55rem);
+      line-height: 1.2;
+      letter-spacing: -0.035em;
+    }
+
+    .section-number {
+      flex: none;
+      color: var(--red);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.88rem;
+      letter-spacing: 0.04em;
+    }
+
+    h3 {
+      margin-bottom: 12px;
+      font-size: 1.14rem;
+      line-height: 1.4;
+    }
+
+    .goal-grid,
+    .wiring-grid,
+    .explain-grid,
+    .verification-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .note,
+    .panel {
+      padding: 24px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    .note p:last-child,
+    .panel p:last-child {
+      margin-bottom: 0;
+    }
+
+    .note strong {
+      color: var(--red-deep);
+    }
+
+    .simulator {
+      overflow: hidden;
+      border: 2px solid var(--ink);
+      border-radius: 24px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .simulator-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      padding: 18px 22px;
+      color: #fff;
+      background: var(--ink);
+    }
+
+    .simulator-kicker {
+      margin: 0;
+      font-size: 0.86rem;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+    }
+
+    .simulator-note {
+      margin: 0;
+      color: #c7d7e8;
+      font-size: 0.82rem;
+      text-align: right;
+    }
+
+    .stage {
+      padding: clamp(28px, 6vw, 56px) 22px 30px;
+      background:
+        radial-gradient(circle at 50% -20%, rgba(18, 101, 168, 0.16), transparent 55%),
+        #f7fbff;
+    }
+
+    .led-bank {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(54px, 104px));
+      justify-content: center;
+      gap: clamp(12px, 4vw, 30px);
+    }
+
+    .led-unit {
+      display: grid;
+      justify-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .led {
+      position: relative;
+      width: min(15vw, 82px);
+      min-width: 52px;
+      aspect-ratio: 1;
+      border: 4px solid #718096;
+      border-radius: 50% 50% 44% 44%;
+      background: #e8edf2;
+      box-shadow: inset -10px -12px 16px rgba(11, 31, 58, 0.15);
+      transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+    }
+
+    .led::before {
+      position: absolute;
+      top: 15%;
+      left: 20%;
+      width: 24%;
+      height: 20%;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.75);
+      content: "";
+    }
+
+    .led::after {
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      width: 44%;
+      height: 18px;
+      border-right: 3px solid #78889b;
+      border-left: 3px solid #78889b;
+      content: "";
+      transform: translateX(-50%);
+    }
+
+    .led.is-on {
+      border-color: #c71120;
+      background: var(--red);
+      box-shadow:
+        inset -10px -12px 18px rgba(121, 0, 9, 0.32),
+        0 0 0 8px rgba(232, 41, 54, 0.1),
+        0 0 30px rgba(232, 41, 54, 0.62);
+    }
+
+    .led[data-led="0"].is-on {
+      border-color: #1679d7;
+      background: #40bfff;
+      box-shadow: inset -10px -12px 18px #1265a844, 0 0 30px #40bfffa0;
+    }
+
+    .led[data-led="2"].is-on {
+      border-color: #7294b5;
+      background: #fff;
+      box-shadow: inset -10px -12px 18px #cde5ff, 0 0 30px #b7d9ff;
+    }
+
+    .led[data-led="3"].is-on {
+      border-color: #14863c;
+      background: #57e77e;
+      box-shadow: inset -10px -12px 18px #14863c44, 0 0 30px #57e77ea0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .led { transition: none; }
+    }
+
+    .state-readout {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px 18px;
+      margin-top: 38px;
+      text-align: center;
+    }
+
+    .state-number {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 800;
+    }
+
+    .state-bits {
+      padding: 7px 13px;
+      border: 1px solid #aebed0;
+      border-radius: 8px;
+      background: #fff;
+      color: var(--red-deep);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 1.1rem;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 20px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+    }
+
+    .control-button,
+    .speed-select {
+      min-height: 44px;
+      border: 1px solid #9eb0c5;
+      border-radius: 10px;
+      background: #fff;
+      color: var(--ink);
+      font-weight: 800;
+    }
+
+    .control-button {
+      padding: 9px 16px;
+      cursor: pointer;
+    }
+
+    .control-button.primary {
+      border-color: var(--red-deep);
+      color: #fff;
+      background: var(--red-deep);
+    }
+
+    .control-button:hover,
+    .speed-select:hover {
+      border-color: var(--blue);
+    }
+
+    .speed-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: 6px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-weight: 800;
+    }
+
+    .speed-select {
+      padding: 8px 34px 8px 11px;
+    }
+
+    .pattern-heading {
+      margin: 34px 0 15px;
+    }
+
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .pattern-card {
+      min-width: 0;
+      padding: 13px 8px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--ink);
+      cursor: pointer;
+      text-align: center;
+    }
+
+    .pattern-card:hover {
+      border-color: var(--blue);
+    }
+
+    .pattern-card[aria-current="step"] {
+      border-color: var(--red);
+      background: var(--red-soft);
+      box-shadow: inset 0 0 0 1px var(--red);
+    }
+
+    .pattern-index {
+      display: block;
+      margin-bottom: 7px;
+      color: var(--muted);
+      font-size: 0.72rem;
+      font-weight: 800;
+    }
+
+    .mini-leds {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      margin-bottom: 7px;
+    }
+
+    .mini-led {
+      width: 10px;
+      height: 10px;
+      border: 1px solid #8a9aac;
+      border-radius: 50%;
+      background: #dce4ec;
+    }
+
+    .mini-led.on {
+      border-color: var(--red-deep);
+      background: var(--red);
+      box-shadow: 0 0 6px rgba(232, 41, 54, 0.55);
+    }
+
+    .pattern-bits {
+      display: block;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+    }
+
+    .diagram-wrap {
+      overflow-x: auto;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+
+    .diagram-wrap svg {
+      display: block;
+      width: 100%;
+      min-width: 760px;
+      height: auto;
+    }
+
+    .parts-list,
+    .pin-list {
+      margin: 0;
+      padding-left: 1.25em;
+    }
+
+    .pin-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.94rem;
+    }
+
+    .pin-table th,
+    .pin-table td {
+      padding: 10px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+    }
+
+    .pin-table th {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+
+    .code-shell {
+      overflow: hidden;
+      border: 2px solid var(--ink);
+      border-radius: var(--radius);
+      background: #071629;
+      box-shadow: var(--shadow);
+    }
+
+    .code-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 16px;
+      border-bottom: 1px solid #30465f;
+      color: #cfdeed;
+      font-size: 0.82rem;
+      font-weight: 800;
+    }
+
+    pre {
+      margin: 0;
+      overflow-x: auto;
+      padding: 24px;
+      color: #e8f2fb;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.88rem;
+      line-height: 1.65;
+      tab-size: 2;
+    }
+
+    code {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    }
+
+    .formula {
+      display: block;
+      overflow-x: auto;
+      margin: 16px 0;
+      padding: 15px;
+      border-left: 4px solid var(--red);
+      background: #fff;
+      color: var(--red-deep);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+
+    .verified {
+      border-top: 4px solid var(--blue);
+    }
+
+    .status-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      margin-bottom: 10px;
+      font-size: 0.78rem;
+      font-weight: 900;
+      letter-spacing: 0.05em;
+    }
+
+    .status-label::before {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: currentColor;
+      content: "";
+    }
+
+    .media-figure {
+      margin: 24px 0;
+    }
+
+    .media-figure img,
+    .media-figure video {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: #fff;
+    }
+
+    .media-figure img { padding: 16px; }
+    .media-figure video { aspect-ratio: 16 / 9; background: #0b1f3a; }
+
+    figcaption {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.7;
+    }
+
+    .asset-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 24px;
+      margin: 16px 0;
+      font-weight: 700;
+    }
+
+    details { margin-top: 24px; }
+    summary { cursor: pointer; font-weight: 800; margin-bottom: 16px; }
+    .video-chapters { margin-top: 18px; }
+    .video-chapters button { margin: 0 8px 8px 0; }
+
+    footer {
+      padding: 24px 0 48px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    @media (max-width: 760px) {
+      .page {
+        width: min(100% - 28px, 1040px);
+      }
+
+      .site-header {
+        padding-top: 36px;
+      }
+
+      main {
+        padding-top: 36px;
+      }
+
+      section {
+        margin-top: 58px;
+      }
+
+      .goal-grid,
+      .wiring-grid,
+      .explain-grid,
+      .verification-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .pattern-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+
+      .simulator-head {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .simulator-note {
+        text-align: left;
+      }
+    }
+
+    @media (max-width: 420px) {
+      body {
+        font-size: 16px;
+      }
+
+      h1 {
+        font-size: 2.28rem;
+      }
+
+      .led-bank {
+        gap: 9px;
+      }
+
+      .led {
+        min-width: 48px;
+      }
+
+      .controls {
+        justify-content: stretch;
+      }
+
+      .control-button {
+        flex: 1 1 30%;
+      }
+
+      .speed-wrap {
+        justify-content: space-between;
+        width: 100%;
+        margin: 4px 0 0;
+      }
+
+      .speed-select {
+        flex: 1;
+      }
+    }
+
+    body { word-break: keep-all; }
+    .led-bank.three { grid-template-columns: repeat(3, minmax(54px, 104px)); }
+    .led[data-color="blue"].is-on { border-color: #1679d7; background: #40bfff; box-shadow: inset -10px -12px 18px #1265a844, 0 0 30px #40bfffa0; }
+    .led[data-color="green"].is-on { border-color: #14863c; background: #57e77e; box-shadow: inset -10px -12px 18px #14863c44, 0 0 30px #57e77ea0; }
+
+    .pot-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 14px;
+      max-width: 620px;
+      margin: 34px auto 0;
+      font-weight: 800;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    .pot-row input[type="range"] { width: 100%; accent-color: var(--red-deep); }
+
+    .readout-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      max-width: 620px;
+      margin: 18px auto 0;
+      text-align: center;
+    }
+
+    .readout {
+      padding: 10px 8px;
+      border: 1px solid #aebed0;
+      border-radius: 10px;
+      background: #fff;
+    }
+
+    .readout span { display: block; color: var(--muted); font-size: 0.74rem; font-weight: 800; }
+    .readout strong { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 1.05rem; color: var(--red-deep); }
+
+    .timeline {
+      position: relative;
+      max-width: 620px;
+      height: 46px;
+      margin: 26px auto 0;
+      border: 1px solid #aebed0;
+      border-radius: 10px;
+      background: linear-gradient(90deg, var(--red-soft) 0 60%, #fff 60% 100%);
+    }
+
+    .timeline .mark {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      border-left: 2px dashed #9eb0c5;
+    }
+
+    .timeline .mark span {
+      position: absolute;
+      top: 100%;
+      left: -1px;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 0.7rem;
+      font-weight: 800;
+      white-space: nowrap;
+      transform: translateX(-50%);
+    }
+
+    .timeline .head {
+      position: absolute;
+      top: -6px;
+      bottom: -6px;
+      width: 3px;
+      border-radius: 2px;
+      background: var(--ink);
+    }
+
+    .timeline-caption { max-width: 620px; margin: 34px auto 0; color: var(--muted); font-size: 0.84rem; text-align: center; }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 9px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    .data-table th { color: var(--muted); font-size: 0.8rem; }
+    .data-table td.bad { color: var(--red-deep); font-weight: 800; }
+    .data-table td.ok { color: #14863c; font-weight: 800; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+    .two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+    .code-shell.light pre { font-size: 0.84rem; }
+    .code-toolbar a { color: #9fd2ff; }
+    #videoFigure video { aspect-ratio: auto; max-height: 80vh; object-fit: contain; }
+    .back-link { display: inline-block; margin-bottom: 18px; font-size: 0.9rem; font-weight: 800; }
+
+    @media (max-width: 760px) {
+      .two-col { grid-template-columns: 1fr; }
+      .readout-grid { grid-template-columns: 1fr 1fr 1fr; }
+    }
+  
+    .flow-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+    }
+
+    .pwm-stage {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 22px;
+      align-items: center;
+    }
+
+    .slider-box {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      font-weight: 800;
+    }
+
+    .slider-box input {
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 44px;
+      height: 190px;
+      accent-color: #e88a10;
+      cursor: pointer;
+    }
+
+    .slider-box strong {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .wave-box canvas {
+      display: block;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .wave-note {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 0.86rem;
+    }
+
+    .led-box {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-weight: 800;
+      font-size: 0.86rem;
+    }
+
+    .sim-led {
+      --level: 0;
+      width: 64px;
+      height: 64px;
+      border-radius: 50% 50% 44% 44%;
+      border: 3px solid #b77a12;
+      background: color-mix(in srgb, #ffd23f calc(var(--level) * 100%), #6b5a2e);
+      box-shadow: 0 0 calc(var(--level) * 46px) calc(var(--level) * 14px) rgba(255, 196, 40, calc(var(--level) * 0.85));
+    }
+
+    .lcd-readouts {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 18px;
+    }
+
+    .lcd-readouts div {
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #fff;
+    }
+
+    .lcd-readouts span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.78rem;
+      font-weight: 700;
+    }
+
+    .lcd-readouts strong {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .check-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-height: 44px;
+      font-weight: 800;
+    }
+
+    .check-label input {
+      width: 18px;
+      height: 18px;
+    }
+
+    .serial-log {
+      min-height: 60px;
+      margin: 14px 0 0;
+      padding: 10px 14px 10px 36px;
+      border-radius: 12px;
+      background: #0b1f3a;
+      color: #cfe3f7;
+      font-family: "SFMono-Regular", Consolas, monospace;
+      font-size: 0.84rem;
+      line-height: 1.5;
+      columns: 3;
+    }
+
+    .media-figure img.photo {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+    }
+
+    @media (max-width: 760px) {
+      .flow-list {
+        grid-template-columns: 1fr;
+      }
+
+      .pwm-stage {
+        grid-template-columns: auto auto;
+        justify-content: center;
+      }
+
+      .wave-box {
+        grid-column: 1 / -1;
+        grid-row: 2;
+      }
+
+      .lcd-readouts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .serial-log {
+        columns: 2;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="site-header page">
+    <p class="eyebrow">아두이노 실습 기록</p>
+    <h1>p5.js 슬라이더로<br>LED 밝기 조절하기</h1>
+    <p class="lead">수업의 'p5.js로 Arduino와 대화하기' 예제에 세로 슬라이더를 더했다. 브라우저에서 슬라이더를 움직이면 <code>PWM:0</code>~<code>PWM:255</code> 메시지가 Web Serial로 Arduino에 가고, Arduino는 D9의 PWM으로 LED2의 밝기를 바꾼다.</p>
+    <div class="meta" aria-label="게시물 정보">
+      <span>202601537 박창우</span>
+      <span>Arduino Uno · p5.js · Web Serial</span>
+      <span>D9 PWM · 0–255</span>
+    </div>
+  </header>
+
+  <main class="page">
+    <article>
+      <section aria-labelledby="task-title">
+        <h2 id="task-title"><span class="section-number">01</span>과제</h2>
+        <div class="two-col">
+          <div class="note">
+            <h3>미션</h3>
+            <p>p5의 슬라이더를 활용해 아두이노에 연결된 <strong>LED의 밝기를 조절</strong>한다.</p>
+          </div>
+          <div class="note">
+            <h3>결과 요약</h3>
+            <ul>
+              <li>p5 화면 오른쪽에 세로 슬라이더(0~255)를 그렸다.</li>
+              <li>값이 바뀔 때만 <code>PWM:값</code>을 보내고, 앞 전송이 끝나기 전에 바뀐 값은 최신 값 하나만 보낸다.</li>
+              <li>Arduino는 <code>analogWrite(9, 값)</code>으로 LED2 밝기를 바꾼다.</li>
+              <li>실제 Arduino Uno에서 슬라이더로 밝기가 바뀌는 것을 확인했다.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="start-title">
+        <h2 id="start-title"><span class="section-number">02</span>출발점: 수업 예제</h2>
+        <p>수업 예제에서 브라우저(p5.js)와 Arduino는 USB 시리얼로 <strong>텍스트를 한 줄씩</strong> 주고받는다. 속도는 양쪽 모두 9600 baud이고, 메시지 하나는 끝에 줄바꿈(<code>\n</code>)이 붙은 한 줄이다. 포트를 열고 줄 단위로 읽고 쓰는 일은 수업에서 받은 <code>serial-helper.js</code>(<code>SerialHelper</code> 클래스)가 맡고, <code>sketch.js</code>는 화면과 메시지만 다룬다. 이 파일은 수정하지 않았다.</p>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>방향</th><th>메시지</th><th>뜻</th><th></th></tr></thead>
+            <tbody>
+              <tr><td>웹 → Arduino</td><td><code>ON</code> / <code>OFF</code></td><td>LED1(D13) 켜기 / 끄기</td><td>수업 예제</td></tr>
+              <tr><td>Arduino → 웹</td><td><code>POT:0</code>~<code>POT:1023</code></td><td>가변저항(A0) 값</td><td>수업 예제</td></tr>
+              <tr><td>Arduino → 웹</td><td><code>LED:ON</code> / <code>LED:OFF</code></td><td>LED1 상태 확인</td><td>수업 예제</td></tr>
+              <tr><td>웹 → Arduino</td><td><strong><code>PWM:0</code>~<code>PWM:255</code></strong></td><td><strong>LED2(D9) 밝기</strong></td><td><strong>이번에 추가</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="design-title">
+        <h2 id="design-title"><span class="section-number">03</span>설계</h2>
+        <div class="two-col">
+          <div class="note">
+            <h3>1. 메시지는 <code>PWM:값</code> 한 줄</h3>
+            <p>기존 규칙(텍스트 한 줄)을 그대로 따랐다. 앞에 <code>PWM:</code>을 붙여 ON/OFF 명령과 섞이지 않게 했다. 슬라이더 범위를 <code>analogWrite()</code>의 범위와 같은 0~255로 잡아서, Arduino 쪽에서 따로 바꿔 계산할 필요가 없다.</p>
+          </div>
+          <div class="note">
+            <h3>2. LED2는 D9</h3>
+            <p>Uno에서 밝기를 조절할 수 있는(PWM) 핀은 3, 5, 6, 9, 10, 11번(보드에 <code>~</code> 표시)이다. D13은 PWM이 안 되므로 새 LED는 D9에 달았다. D9의 PWM 주파수는 약 490 Hz다.</p>
+          </div>
+          <div class="note">
+            <h3>3. 값이 바뀔 때만 보낸다</h3>
+            <p>슬라이더를 끄는 동안 <code>mouseDragged()</code>는 계속 불리지만, 반올림한 값이 마지막으로 보낸 값과 같으면 보내지 않는다(<code>lastSent</code>).</p>
+          </div>
+          <div class="note">
+            <h3>4. 전송은 한 번에 하나, 밀린 값은 최신 값만</h3>
+            <p>Web Serial은 앞 전송이 끝나기 전에 다시 쓰려고 하면 오류가 날 수 있다. 그래서 <code>sendPWM()</code>은 전송 중이면 값만 <code>pendingPWM</code>에 덮어 두고, 앞 전송이 끝나면 그 최신 값 하나만 보낸다. 중간 값은 버려도 되지만 마지막 값은 꼭 도착한다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="simulation-title">
+        <h2 id="simulation-title"><span class="section-number">04</span>브라우저 시뮬레이션</h2>
+        <p>Arduino 없이 동작을 볼 수 있게 만들었다. 슬라이더를 움직이면 보낼 메시지가 쌓이고, D9의 PWM 파형과 LED 밝기가 바뀐다. 한 메시지(예: <code>PWM:128\n</code>, 8바이트)는 9600 baud에서 약 8.3 ms 걸린다고 보고 전송을 흉내 냈다.</p>
+        <div class="simulator">
+          <div class="simulator-head">
+            <p class="simulator-kicker">p5 슬라이더 → Web Serial → D9 PWM</p>
+            <p class="simulator-note">실제 포트에 연결하지 않는 시뮬레이션</p>
+          </div>
+          <div class="stage">
+            <div class="pwm-stage">
+              <div class="slider-box">
+                <label for="duty">LED2 밝기</label>
+                <input type="range" id="duty" min="0" max="255" value="0" orient="vertical">
+                <strong id="dutyOut">0 / 255</strong>
+              </div>
+              <div class="wave-box">
+                <canvas id="wave" role="img" aria-label="D9 핀의 PWM 파형. 켜진 시간의 비율이 슬라이더 값에 따라 바뀐다."></canvas>
+                <p class="wave-note">D9 파형 · 한 주기 약 2.04 ms(490 Hz) · 켜진 비율 <strong id="dutyPct">0%</strong></p>
+              </div>
+              <div class="led-box" aria-hidden="true">
+                <div class="sim-led" id="simLed"></div>
+                <span>LED2</span>
+              </div>
+            </div>
+            <div class="lcd-readouts">
+              <div><span>값이 바뀐 횟수</span><strong id="changesOut">0</strong></div>
+              <div><span>보낸 메시지</span><strong id="sentOut">0</strong></div>
+              <div><span>건너뛴 중간 값</span><strong id="skippedOut">0</strong></div>
+              <div><span>겹친 전송(오류)</span><strong id="overlapOut">0</strong></div>
+            </div>
+            <div class="controls" style="margin-top: 18px;">
+              <label class="check-label"><input type="checkbox" id="naiveToggle">대기열 없이 매번 바로 보내기</label>
+              <button class="control-button" type="button" id="clearButton">기록 지우기</button>
+            </div>
+            <ol class="serial-log" id="serialLog" aria-label="보낸 메시지 기록"></ol>
+          </div>
+        </div>
+        <p class="note" style="margin-top: 14px;">'대기열 없이 매번 바로 보내기'를 켜고 슬라이더를 빠르게 끌면, 앞 전송이 끝나기 전에 다음 전송이 시작되는 '겹친 전송'이 생긴다. 실제 Web Serial에서는 이때 쓰기 잠금 오류가 난다. 끄면(스케치와 같은 방식) 겹침은 0이고 마지막 값은 항상 보내진다.</p>
+      </section>
+
+      <section aria-labelledby="wiring-title">
+        <h2 id="wiring-title"><span class="section-number">05</span>회로와 연결도</h2>
+        <p>수업 회로(LED1·버튼·가변저항·I2C LCD)는 그대로 두고 <strong>LED2 하나와 220 Ω 저항</strong>을 더했다. D9 → 220 Ω → LED2 긴 다리(+), 짧은 다리(−) → GND 레일이다. LED1과 같은 모양으로 꽂았다.</p>
+        <figure class="media-figure">
+          <a href="assets/p5-led-slider-breadboard.svg" aria-label="연결도 크게 보기">
+            <img src="assets/p5-led-slider-breadboard.svg" alt="브레드보드 연결도. 수업 회로의 빨강 LED1은 D13에서 220옴 저항을 거쳐 연결되고, 새로 더한 노랑 LED2는 초록 선으로 D9에서 220옴 저항을 거쳐 연결되며 음극은 GND 레일로 간다. 버튼은 D2, 가변저항 가운데 다리는 A0, LCD는 SDA가 A4, SCL이 A5에 연결되어 있다." loading="lazy">
+          </a>
+          <figcaption>수업 Fritzing 파일(PotButtonLCD.fzz)의 브레드보드 화면을 같은 부품 그림과 좌표로 다시 그린 뒤, LED2·220 Ω 저항·D9 선(초록)을 더한 연결도다. 부품 그림은 Fritzing 기본 부품(fritzing-parts, CC BY-SA 3.0)이고, LCD는 수업 파일에 들어 있는 'LCD1602-I2C' 부품(작성자 Stephen Lilley)이다. LED2와 저항은 LED1과 같은 부품을 빈 구멍에 꽂은 예시 위치다.</figcaption>
+        </figure>
+        <div class="asset-links">
+          <a href="assets/p5-led-slider-breadboard.svg" download>연결도 다운로드 (.svg)</a>
+          <a href="assets/p5-led-slider-breadboard.png" download>연결도 이미지 (.png)</a>
+        </div>
+        <div class="wiring-grid" style="margin-top: 18px;">
+          <div class="panel">
+            <h3>핀 연결</h3>
+            <table class="pin-table">
+              <thead><tr><th>Arduino</th><th>연결</th><th>이번 스케치</th></tr></thead>
+              <tbody>
+                <tr><td><strong>D9 (~)</strong></td><td><strong>220 Ω → LED2(+), LED2(−) → GND</strong></td><td><strong>추가, PWM</strong></td></tr>
+                <tr><td>D13</td><td>220 Ω → LED1(빨강)(+), (−) → GND</td><td>ON / OFF</td></tr>
+                <tr><td>A0</td><td>가변저항 가운데 다리 (양 끝 5V·GND)</td><td><code>POT:</code> 보고</td></tr>
+                <tr><td>D2</td><td>버튼 → GND</td><td>수업 회로, 사용 안 함</td></tr>
+                <tr><td>A4 / A5</td><td>LCD SDA / SCL</td><td>수업 회로, 사용 안 함</td></tr>
+                <tr><td>5V / GND</td><td>브레드보드 전원 레일, LCD 전원</td><td></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="panel">
+            <h3>준비물</h3>
+            <ul class="parts-list">
+              <li>수업 회로(Arduino Uno, LED1, 버튼, 가변저항, I2C LCD)</li>
+              <li>LED 1개, 220 Ω 저항 1개, 점퍼선 2개 추가</li>
+              <li>Chrome 또는 Edge (Web Serial을 지원하는 브라우저)</li>
+            </ul>
+            <p style="margin-top: 14px;">LED는 긴 다리가 +(애노드)다. 반대로 꽂으면 슬라이더를 올려도 켜지지 않는다. 220 Ω이면 5V에서 LED 전류가 약 13 mA(빨강·노랑 LED 기준)로, Uno 핀 한 개의 권장 한도(20 mA) 안이다.</p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="code-title">
+        <h2 id="code-title"><span class="section-number">06</span>코드</h2>
+        <p>웹은 수업 예제의 <code>sketch.js</code>에 슬라이더 부분(<code>drawSlider()</code>, <code>updateSlider()</code>, <code>sendPWM()</code>)과 마우스 처리를 더했다. <code>index.html</code>과 <code>serial-helper.js</code>는 수업 예제 그대로다. Arduino는 LED1·LED2·가변저항만 다루는 짧은 스케치로 새로 썼다.</p>
+        <div class="code-shell">
+          <div class="code-toolbar">
+            <span>web/sketch.js (p5.js)</span>
+            <a href="web/sketch.js" download>sketch.js 다운로드</a>
+          </div>
+          <pre><code>// 복잡한 통신은 serial-helper.js가 처리합니다.
+let serial, connectButton;
+let ledOn = false;
+let potValue = 0;
+let statusText = 'Arduino를 연결해 주세요.';
+
+// LED2 (D9 PWM) 밝기 슬라이더
+let led2Value = 0;            // 0~255
+let draggingSlider = false;
+let lastSent = -1;
+let sending = false;          // 전송 중복 방지
+let pendingPWM = null;        // 전송 중에 바뀐 최신 값
+const SL = { x: 540, top: 110, bottom: 300 }; // 수직 슬라이더 위치
+
+function setup() {
+  createCanvas(600, 400);
+  textFont('sans-serif');
+  serial = new SerialHelper(9600, receiveLine, message =&gt; statusText = message);
+  connectButton = createButton('Arduino 연결 / 해제');
+  connectButton.mousePressed(() =&gt; serial.toggle());
+}
+
+function draw() {
+  background(242, 246, 250);
+  fill(25, 40, 60); noStroke(); textAlign(CENTER);
+  textSize(24); text('Arduino Uno R3 · Web Serial', width / 2, 36);
+  textSize(14); text(statusText, width / 2, 66);
+
+  // LED1 (D13) 토글 버튼
+  fill(ledOn ? '#22c55e' : '#64748b');
+  circle(160, 175, 110);
+  fill(255); textSize(22); text(ledOn ? 'ON' : 'OFF', 160, 183);
+  fill(25, 40, 60); textSize(15); text('원을 클릭하면 LED 토글', 160, 260);
+
+  // 가변저항 A0 막대
+  text('가변저항 A0', 340, 120);
+  fill('#dbe3ed'); rect(240, 155, 200, 40, 10);
+  fill('#3b82f6'); rect(240, 155, map(potValue, 0, 1023, 0, 200), 40, 10);
+  fill(25, 40, 60); textSize(24); text(potValue + ' / 1023', 340, 235);
+
+  // LED2 (D9) 수직 슬라이더
+  drawSlider();
+
+  fill(25, 40, 60); textSize(14);
+  text('9600 baud · ON / OFF / PWM:0~255 + 줄바꿈', 300, 345);
+  text('수신: 0~1023 또는 POT:값 · LED:ON / LED:OFF', 300, 370);
+}
+
+function drawSlider() {
+  fill(25, 40, 60); textSize(15); textAlign(CENTER);
+  text('LED2 밝기', SL.x, SL.top - 25);
+
+  // 트랙
+  fill('#dbe3ed'); rect(SL.x - 6, SL.top, 12, SL.bottom - SL.top, 6);
+
+  // 채워진 부분 + 손잡이
+  const hy = map(led2Value, 0, 255, SL.bottom, SL.top);
+  fill('#f59e0b'); rect(SL.x - 6, hy, 12, SL.bottom - hy, 6);
+  fill(255); stroke('#f59e0b'); strokeWeight(3);
+  circle(SL.x, hy, 26);
+  noStroke();
+
+  // 값 표시
+  fill(25, 40, 60); textSize(16);
+  text(led2Value + ' / 255', SL.x, SL.bottom + 30);
+}
+
+async function mousePressed() {
+  // 슬라이더 영역 클릭 → 드래그 시작
+  if (abs(mouseX - SL.x) &lt; 20 &amp;&amp; mouseY &gt; SL.top - 15 &amp;&amp; mouseY &lt; SL.bottom + 15) {
+    draggingSlider = true;
+    updateSlider();
+    return;
+  }
+
+  // LED1 원 클릭 → 토글
+  if (dist(mouseX, mouseY, 160, 175) &gt; 55) return;
+  const next = !ledOn;
+  if (await serial.send(next ? 'ON' : 'OFF')) ledOn = next;
+}
+
+function mouseDragged() {
+  if (draggingSlider) updateSlider();
+}
+
+function mouseReleased() {
+  draggingSlider = false;
+}
+
+function updateSlider() {
+  const y = constrain(mouseY, SL.top, SL.bottom);
+  led2Value = round(map(y, SL.bottom, SL.top, 0, 255));
+  if (led2Value !== lastSent) {
+    lastSent = led2Value;
+    sendPWM(led2Value);   // 값이 바뀔 때만 전송
+  }
+}
+
+// 드래그 중 전송이 겹치지 않도록 하나씩 보내고, 밀린 값은 최신 값만 보냅니다.
+async function sendPWM(value) {
+  pendingPWM = value;
+  if (sending) return;
+  sending = true;
+  while (pendingPWM !== null) {
+    const v = pendingPWM;
+    pendingPWM = null;
+    await serial.send('PWM:' + v);
+  }
+  sending = false;
+}
+
+function receiveLine(line) {
+  // Arduino가 보내는 한 줄을 화면에 반영합니다.
+  const message = line.trim().toUpperCase();
+  if (message === 'LED:ON' || message === 'ON') ledOn = true;
+  else if (message === 'LED:OFF' || message === 'OFF') ledOn = false;
+  else {
+    const match = message.match(/^(?:POT\s*[:=]\s*)?(\d+)$/);
+    if (match) potValue = constrain(Number(match[1]), 0, 1023);
+  }
+}</code></pre>
+        </div>
+        <div class="code-shell" style="margin-top: 18px;">
+          <div class="code-toolbar">
+            <span>led2_pwm_test.ino (Arduino)</span>
+            <a href="led2_pwm_test/led2_pwm_test.ino" download>스케치 다운로드</a>
+          </div>
+          <pre><code>// p5.js sketch.js와 짝을 이루는 최소 테스트 스케치
+// 수신: ON / OFF / PWM:0~255 (줄바꿈 포함)
+// 송신: POT:0~1023
+
+const int LED1_PIN = 13;  // 토글 LED
+const int LED2_PIN = 9;   // 밝기 조절 LED (PWM)
+const int POT_PIN  = A0;
+
+int lastPot = -1;
+unsigned long lastPotTime = 0;
+
+void setup() {
+  Serial.begin(9600);
+  Serial.setTimeout(50);          // readStringUntil 대기 시간 단축
+  pinMode(LED1_PIN, OUTPUT);
+  pinMode(LED2_PIN, OUTPUT);
+  analogWrite(LED2_PIN, 0);
+}
+
+void loop() {
+  // 1) 웹에서 온 명령 처리
+  if (Serial.available()) {
+    String line = Serial.readStringUntil('\n');
+    line.trim();
+    line.toUpperCase();
+
+    if (line.startsWith("PWM:")) {
+      int v = constrain(line.substring(4).toInt(), 0, 255);
+      analogWrite(LED2_PIN, v);
+    } else if (line == "ON") {
+      digitalWrite(LED1_PIN, HIGH);
+      Serial.println("LED:ON");
+    } else if (line == "OFF") {
+      digitalWrite(LED1_PIN, LOW);
+      Serial.println("LED:OFF");
+    }
+  }
+
+  // 2) 가변저항 값이 바뀌면 100ms마다 전송
+  if (millis() - lastPotTime &gt; 100) {
+    lastPotTime = millis();
+    int pot = analogRead(POT_PIN);
+    if (abs(pot - lastPot) &gt; 2) {
+      lastPot = pot;
+      Serial.print("POT:");
+      Serial.println(pot);
+    }
+  }
+}</code></pre>
+        </div>
+      </section>
+
+      <section aria-labelledby="explanation-title">
+        <h2 id="explanation-title"><span class="section-number">07</span>동작 원리</h2>
+        <div class="flow-list">
+          <div class="note"><h3>1. 마우스 위치 → 0~255</h3><p><code>updateSlider()</code>가 마우스 y좌표를 슬라이더 위(110)~아래(300) 사이로 묶고, <code>map()</code>으로 아래 0 ~ 위 255로 바꾼 뒤 반올림한다.</p></div>
+          <div class="note"><h3>2. 바뀐 값만 대기열로</h3><p>값이 <code>lastSent</code>와 다를 때만 <code>sendPWM(값)</code>을 부른다. <code>sendPWM()</code>은 전송 중이면 <code>pendingPWM</code>만 고치고 돌아간다. 전송을 맡은 쪽은 <code>while</code>로 남은 최신 값이 없을 때까지 하나씩 <code>await serial.send('PWM:' + 값)</code>을 한다.</p></div>
+          <div class="note"><h3>3. Arduino가 한 줄을 읽는다</h3><p><code>Serial.readStringUntil('\n')</code>으로 한 줄을 읽고 <code>trim()</code>(앞뒤 공백·<code>\r</code> 제거), <code>toUpperCase()</code>를 한다. <code>PWM:</code>으로 시작하면 다섯째 글자부터를 숫자로 바꾸고 <code>constrain()</code>으로 0~255에 가둔다.</p></div>
+          <div class="note"><h3>4. PWM으로 밝기를 만든다</h3><p><code>analogWrite(9, 값)</code>은 D9를 약 490 Hz로 켰다 껐다 하면서, 한 주기 중 켜진 시간의 비율을 값/255로 맞춘다. 눈은 이 빠른 깜빡임을 평균 밝기로 느낀다. 128이면 절반 정도 켜져 있다.</p></div>
+        </div>
+      </section>
+
+      <section aria-labelledby="verification-title">
+        <h2 id="verification-title"><span class="section-number">08</span>검증</h2>
+        <div class="verification-grid">
+          <div class="panel verified">
+            <span class="status-label" style="color: var(--blue);">확인됨</span>
+            <h3>실제 Arduino Uno에서 동작</h3>
+            <p>스케치를 Uno에 올리고 Chrome 계열 브라우저에서 p5 페이지를 Web Serial로 연결했다. 슬라이더를 움직이면 D9의 LED2 밝기가 따라 바뀌었다(09의 영상). 3.3V에 LED2를 직접 연결해 LED와 배선이 정상인 것도 먼저 확인했다.</p>
+          </div>
+          <div class="panel verified">
+            <span class="status-label" style="color: var(--blue);">확인됨</span>
+            <h3>Arduino Uno 컴파일</h3>
+            <p>Arduino IDE의 arduino-cli(AVR 코어 1.8.8)로 Uno 대상 컴파일에 성공했다. 프로그램 저장 공간 4,920바이트(15%), 전역 변수 228바이트(11%)다.</p>
+          </div>
+        </div>
+        <h3 style="margin-top: 26px;">PC에서 Arduino 스케치에 메시지 넣어 보기</h3>
+        <p>스케치를 PC에서 그대로 컴파일하고, 시리얼 입력·<code>String</code>·핀 출력만 흉내 낸 코드로 바꿔 여러 줄을 넣어 봤다. 실제 사용 중에는 나오기 어려운 입력도 일부러 넣었다.</p>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>넣은 메시지</th><th>결과</th><th>판정</th></tr></thead>
+            <tbody>
+              <tr><td><code>PWM:128</code></td><td>D9 = 128</td><td class="ok">통과</td></tr>
+              <tr><td><code>pwm:300</code></td><td>대문자로 바뀌고 255로 제한</td><td class="ok">통과</td></tr>
+              <tr><td><code>PWM:-5</code></td><td>0으로 제한</td><td class="ok">통과</td></tr>
+              <tr><td><code>␣ON␣\r</code></td><td>공백과 <code>\r</code>을 지우고 D13 켜기, <code>LED:ON</code> 응답</td><td class="ok">통과</td></tr>
+              <tr><td><code>OFF</code></td><td>D13 끄기, <code>LED:OFF</code> 응답</td><td class="ok">통과</td></tr>
+              <tr><td><code>PWM:abc</code></td><td>숫자가 아니면 0 → LED2 꺼짐(고찰 5)</td><td class="ok">통과</td></tr>
+              <tr><td><code>PWM:1</code>~<code>PWM:40</code> 40줄을 한꺼번에</td><td>한 줄씩 처리되어 마지막 값 40</td><td class="ok">통과</td></tr>
+              <tr><td>가변저항 500 → 502 → 503</td><td><code>POT:500</code>, 2 차이는 무시, <code>POT:503</code></td><td class="ok">통과</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h3 style="margin-top: 26px;">PC에서 슬라이더를 빠르게 끌어 보기</h3>
+        <p><code>sketch.js</code>를 Node.js에서 그대로 실행했다. 전송 한 번이 8.3 ms 걸리는 가짜 포트를 붙이고, 슬라이더를 아래 끝에서 위 끝까지 1픽셀씩 빠르게 끌었다. 전송을 그때그때 바로 하는 방식과 비교했다.</p>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>보내는 방식</th><th>값이 바뀐 횟수</th><th>보낸 메시지</th><th>겹친 전송</th><th>마지막으로 보낸 값</th></tr></thead>
+            <tbody>
+              <tr><td>바뀔 때마다 바로 보내기</td><td>191</td><td>191</td><td>190</td><td><code>PWM:255</code></td></tr>
+              <tr><td><code>sendPWM()</code> (최신 값만, 이 과제)</td><td>191</td><td>55</td><td class="ok">0</td><td class="ok"><code>PWM:255</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="margin-top: 14px;">검사 코드: <a href="https://github.com/arclightsforINU/p5-led-slider/tree/main/tools/p5sim">tools/p5sim</a> (<code>ino_test.cpp</code>, <code>queue_test.mjs</code>)</p>
+      </section>
+
+      <section aria-labelledby="demo-title">
+        <h2 id="demo-title"><span class="section-number">09</span>실제 동작</h2>
+        <figure class="media-figure" id="videoFigure" hidden>
+          <video controls playsinline preload="metadata" poster="assets/p5-led-slider-poster.jpg" aria-label="p5 슬라이더로 LED 밝기를 조절하는 실제 동작 영상">
+            <source src="assets/p5-led-slider.mp4" type="video/mp4">
+          </video>
+          <figcaption>실제 동작 영상. 브라우저의 슬라이더를 움직이는 대로 D9의 LED2 밝기가 바뀐다.</figcaption>
+        </figure>
+        <figure class="media-figure" id="photoFigure" hidden>
+          <img class="photo" src="assets/p5-led-slider-screen.png" alt="p5 화면. 왼쪽에 LED1 토글 원, 가운데 가변저항 막대, 오른쪽에 LED2 밝기 세로 슬라이더가 있다.">
+          <figcaption>p5 화면. 오른쪽 세로 슬라이더가 이번에 더한 부분이다.</figcaption>
+        </figure>
+        <p class="note" id="demoPending">실제 동작 영상과 화면은 촬영 후 이 자리에 올린다.</p>
+      </section>
+
+      <section aria-labelledby="discussion-title">
+        <h2 id="discussion-title"><span class="section-number">10</span>고찰</h2>
+        <h3>1. 수업 스케치에 슬라이더만 붙이면 안 된 이유</h3>
+        <p>처음에는 수업 Arduino 스케치를 그대로 둔 채 웹에서 <code>PWM:</code>을 보냈는데 LED2가 켜지지 않았다. 수업 스케치의 명령 처리(슬라이드 14)는 받은 줄이 <code>ON</code>이나 <code>OFF</code>인지만 비교하고, 그 밖의 줄은 잘못된 명령으로 버린다. 그래서 Arduino 쪽에 <code>PWM:</code> 처리를 새로 넣어야 했다. 수업 스케치에 합칠 때는 두 가지를 더 챙겨야 한다.</p>
+        <ul>
+          <li><strong>명령 상자 크기:</strong> 명령을 모으는 칸이 8칸(글자 7개까지)이다. <code>PWM:255</code>가 정확히 7글자라 겨우 들어간다.</li>
+          <li><strong>확인 간격:</strong> 시리얼 확인이 500 ms마다 한 번이다. 9600 baud에서는 1초에 약 960바이트가 들어올 수 있다. 500 ms면 최대 480바이트인데, Uno의 수신 버퍼는 64바이트다. 슬라이더를 오래 끌면 버퍼가 넘쳐 메시지가 깨질 수 있고, 반응도 최대 0.5초 늦다. 확인 간격을 10 ms 정도로 줄여야 한다.</li>
+        </ul>
+        <p>이번 스케치는 <code>loop()</code>가 돌 때마다 확인하므로 두 문제가 없다.</p>
+
+        <h3>2. 보내는 속도의 한계</h3>
+        <p><code>PWM:255\n</code>은 8바이트이고, 9600 baud에서 1바이트는 시작·정지 비트를 포함해 10비트다. 그래서 메시지 하나에 약 8.3 ms, 1초에 약 120개가 최대다. p5의 <code>draw()</code>는 1초에 약 60번 돌지만 <code>mouseDragged()</code>는 마우스가 움직일 때마다 불리므로, 빠르게 끌면 보내는 속도보다 값이 더 빨리 바뀐다. '최신 값만 보내기'는 이 차이를 중간 값을 버리는 방식으로 메운다. LED 밝기는 마지막 값만 중요하므로 중간 값을 버려도 손해가 없다.</p>
+
+        <h3>3. 숫자와 눈에 보이는 밝기는 비례하지 않는다</h3>
+        <p><code>analogWrite()</code> 값은 켜진 시간에 비례한다. 하지만 사람 눈은 어두운 쪽 변화에 민감하고 밝은 쪽 변화에는 둔하다. 그래서 0~50 사이에서는 밝기가 크게 바뀌고, 200~255 사이는 거의 같아 보인다. 슬라이더 위치와 느끼는 밝기를 맞추려면 보내기 전에 감마 보정을 할 수 있다(예: <code>값 = round(255 × (위치/255)<sup>2.2</sup>)</code>). 이번 과제에서는 값과 PWM이 바로 대응하는 편이 설명하기 쉬워 적용하지 않았다.</p>
+
+        <h3>4. D9를 쓸 때 주의할 점</h3>
+        <p>D9와 D10의 PWM은 Timer1을 쓴다. <code>Servo</code> 라이브러리도 Timer1을 쓰므로, 서보를 함께 쓰면 D9·D10의 <code>analogWrite()</code>가 동작하지 않는다. 그때는 LED2를 D5나 D6으로 옮긴다. 또, Arduino IDE의 시리얼 모니터가 열려 있으면 포트를 차지해서 브라우저가 연결되지 않는다.</p>
+
+        <h3>5. 잘못된 입력</h3>
+        <p><code>PWM:abc</code>처럼 숫자가 아닌 값이 오면 <code>toInt()</code>가 0을 돌려주어 LED2가 꺼진다. 웹은 항상 0~255 숫자만 보내므로 지금은 문제가 없다. 다른 프로그램이나 시리얼 모니터에서 손으로 보낼 수도 있다면, 숫자가 맞는지 확인한 뒤에만 반영하는 편이 안전하다.</p>
+      </section>
+    </article>
+  </main>
+  <footer>
+    <div class="page">Arduino 실습 기록 · 브라우저 시뮬레이션은 전송 방식과 PWM을 화면에 옮긴 것이며 실제 포트에 연결하지 않습니다.</div>
+  </footer>
+  <script>
+    const SEND_MS = 8.3, PWM_PERIOD_MS = 1000 / 490.2;
+    const duty = document.querySelector("#duty");
+    const naive = document.querySelector("#naiveToggle");
+    const log = document.querySelector("#serialLog");
+    const canvas = document.querySelector("#wave");
+    const ctx = canvas.getContext("2d");
+    const W = 520, H = 150;
+    const ratio = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+    canvas.width = W * ratio;
+    canvas.height = H * ratio;
+    ctx.scale(ratio, ratio);
+    const out = {
+      duty: document.querySelector("#dutyOut"), pct: document.querySelector("#dutyPct"),
+      changes: document.querySelector("#changesOut"), sent: document.querySelector("#sentOut"),
+      skipped: document.querySelector("#skippedOut"), overlap: document.querySelector("#overlapOut"),
+    };
+    let lastSent = -1, sending = false, pending = null, busy = 0;
+    let changes = 0, sent = 0, overlaps = 0, applied = 0;
+
+    function sendLine(text) {
+      if (busy > 0) overlaps++;
+      busy++;
+      return new Promise(resolve => setTimeout(() => {
+        busy--;
+        sent++;
+        applied = Number(text.slice(4));
+        const li = document.createElement("li");
+        li.textContent = `${text}\\n`;
+        log.prepend(li);
+        while (log.children.length > 12) log.lastChild.remove();
+        resolve(true);
+      }, SEND_MS));
+    }
+
+    async function sendPWM(value) {
+      pending = value;
+      if (sending) return;
+      sending = true;
+      while (pending !== null) {
+        const v = pending;
+        pending = null;
+        await sendLine("PWM:" + v);
+      }
+      sending = false;
+    }
+
+    function drawWave() {
+      ctx.clearRect(0, 0, W, H);
+      ctx.strokeStyle = "#cad7e6";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(30, 30); ctx.lineTo(W - 10, 30);
+      ctx.moveTo(30, 120); ctx.lineTo(W - 10, 120);
+      ctx.stroke();
+      ctx.fillStyle = "#53647a";
+      ctx.font = "12px sans-serif";
+      ctx.fillText("5V", 4, 34);
+      ctx.fillText("0V", 4, 124);
+      const periods = 4, span = (W - 40) / periods, d = applied / 255;
+      ctx.strokeStyle = "#e88a10";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i < periods; i++) {
+        const x0 = 30 + i * span, x1 = x0 + span * d;
+        if (d > 0) { ctx.moveTo(x0, 120); ctx.lineTo(x0, 30); ctx.lineTo(x1, 30); ctx.lineTo(x1, 120); }
+        ctx.moveTo(x1, 120); ctx.lineTo(x0 + span, 120);
+      }
+      ctx.stroke();
+      ctx.fillStyle = "#53647a";
+      ctx.fillText(`${PWM_PERIOD_MS.toFixed(2)} ms`, 30 + span / 2 - 22, 142);
+    }
+
+    function render() {
+      const v = Number(duty.value);
+      out.duty.textContent = `${v} / 255`;
+      out.pct.textContent = `${Math.round(applied / 255 * 100)}%`;
+      out.changes.textContent = changes;
+      out.sent.textContent = sent;
+      out.skipped.textContent = Math.max(changes - sent, 0);
+      out.overlap.textContent = overlaps;
+      document.querySelector("#simLed").style.setProperty("--level", applied / 255);
+      drawWave();
+      requestAnimationFrame(render);
+    }
+
+    duty.addEventListener("input", () => {
+      const v = Number(duty.value);
+      if (v === lastSent) return;
+      lastSent = v;
+      changes++;
+      if (naive.checked) sendLine("PWM:" + v);
+      else sendPWM(v);
+    });
+    document.querySelector("#clearButton").addEventListener("click", () => {
+      changes = sent = overlaps = 0;
+      log.innerHTML = "";
+    });
+    requestAnimationFrame(render);
+
+    const hasFile = (url, type) => fetch(url, { method: "HEAD", cache: "no-store" })
+      .then(r => r.ok && (r.headers.get("content-type") || "").startsWith(type))
+      .catch(() => false);
+    Promise.all([
+      hasFile("assets/p5-led-slider.mp4", "video/"),
+      hasFile("assets/p5-led-slider-screen.png", "image/"),
+    ]).then(([video, photo]) => {
+      document.querySelector("#videoFigure").hidden = !video;
+      document.querySelector("#photoFigure").hidden = !photo;
+      document.querySelector("#demoPending").hidden = video || photo;
+    });
+  </script>
+</body>
+</html>
