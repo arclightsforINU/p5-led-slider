@@ -860,9 +860,9 @@
       width: 64px;
       height: 64px;
       border-radius: 50% 50% 44% 44%;
-      border: 3px solid #b77a12;
-      background: color-mix(in srgb, #ffd23f calc(var(--level) * 100%), #6b5a2e);
-      box-shadow: 0 0 calc(var(--level) * 46px) calc(var(--level) * 14px) rgba(255, 196, 40, calc(var(--level) * 0.85));
+      border: 3px solid #2b4fb8;
+      background: color-mix(in srgb, #7fb2ff calc(var(--level) * 100%), #26345e);
+      box-shadow: 0 0 calc(var(--level) * 46px) calc(var(--level) * 14px) rgba(70, 130, 255, calc(var(--level) * 0.85));
     }
 
     .lcd-readouts {
@@ -1061,10 +1061,10 @@
 
       <section aria-labelledby="wiring-title">
         <h2 id="wiring-title"><span class="section-number">05</span>회로와 연결도</h2>
-        <p>수업 회로(LED1·버튼·가변저항·I2C LCD)는 그대로 두고 <strong>LED2 하나와 220 Ω 저항</strong>을 더했다. D9 → 220 Ω → LED2 긴 다리(+), 짧은 다리(−) → GND 레일이다. LED1과 같은 모양으로 꽂았다.</p>
+        <p>수업 회로(LED1·버튼·가변저항·I2C LCD)는 그대로 두고 <strong>파랑 LED2 하나와 220 Ω 저항</strong>을 더했다. D9 → 220 Ω → LED2 긴 다리(+), 짧은 다리(−) → GND 레일이다. LED1과 같은 모양으로 꽂았다.</p>
         <figure class="media-figure">
           <a href="assets/p5-led-slider-breadboard.svg" aria-label="연결도 크게 보기">
-            <img src="assets/p5-led-slider-breadboard.svg" alt="브레드보드 연결도. 수업 회로의 빨강 LED1은 D13에서 220옴 저항을 거쳐 연결되고, 새로 더한 노랑 LED2는 초록 선으로 D9에서 220옴 저항을 거쳐 연결되며 음극은 GND 레일로 간다. 버튼은 D2, 가변저항 가운데 다리는 A0, LCD는 SDA가 A4, SCL이 A5에 연결되어 있다." loading="lazy">
+            <img src="assets/p5-led-slider-breadboard.svg" alt="브레드보드 연결도. 수업 회로의 빨강 LED1은 D13에서 220옴 저항을 거쳐 연결되고, 새로 더한 파랑 LED2는 초록 선으로 D9에서 220옴 저항을 거쳐 연결되며 음극은 GND 레일로 간다. 버튼은 D2, 가변저항 가운데 다리는 A0, LCD는 SDA가 A4, SCL이 A5에 연결되어 있다." loading="lazy">
           </a>
           <figcaption>수업 Fritzing 파일(PotButtonLCD.fzz)의 브레드보드 화면을 같은 부품 그림과 좌표로 다시 그린 뒤, LED2·220 Ω 저항·D9 선(초록)을 더한 연결도다. 부품 그림은 Fritzing 기본 부품(fritzing-parts, CC BY-SA 3.0)이고, LCD는 수업 파일에 들어 있는 'LCD1602-I2C' 부품(작성자 Stephen Lilley)이다. LED2와 저항은 LED1과 같은 부품을 빈 구멍에 꽂은 예시 위치다.</figcaption>
         </figure>
@@ -1078,7 +1078,7 @@
             <table class="pin-table">
               <thead><tr><th>Arduino</th><th>연결</th><th>이번 스케치</th></tr></thead>
               <tbody>
-                <tr><td><strong>D9 (~)</strong></td><td><strong>220 Ω → LED2(+), LED2(−) → GND</strong></td><td><strong>추가, PWM</strong></td></tr>
+                <tr><td><strong>D9 (~)</strong></td><td><strong>220 Ω → 파랑 LED2(+), (−) → GND</strong></td><td><strong>추가, PWM</strong></td></tr>
                 <tr><td>D13</td><td>220 Ω → LED1(빨강)(+), (−) → GND</td><td>ON / OFF</td></tr>
                 <tr><td>A0</td><td>가변저항 가운데 다리 (양 끝 5V·GND)</td><td><code>POT:</code> 보고</td></tr>
                 <tr><td>D2</td><td>버튼 → GND</td><td>수업 회로, 사용 안 함</td></tr>
@@ -1094,7 +1094,7 @@
               <li>LED 1개, 220 Ω 저항 1개, 점퍼선 2개 추가</li>
               <li>Chrome 또는 Edge (Web Serial을 지원하는 브라우저)</li>
             </ul>
-            <p style="margin-top: 14px;">LED는 긴 다리가 +(애노드)다. 반대로 꽂으면 슬라이더를 올려도 켜지지 않는다. 220 Ω이면 5V에서 LED 전류가 약 13 mA(빨강·노랑 LED 기준)로, Uno 핀 한 개의 권장 한도(20 mA) 안이다.</p>
+            <p style="margin-top: 14px;">LED는 긴 다리가 +(애노드)다. 반대로 꽂으면 슬라이더를 올려도 켜지지 않는다. 220 Ω이면 5V에서 빨강 LED1에 약 13 mA, 파랑 LED2에 약 9 mA가 흐른다(파랑 LED는 켜지는 전압이 약 3 V로 더 높다). 둘 다 Uno 핀 하나의 권장 한도(20 mA) 안이다.</p>
           </div>
         </div>
       </section>
@@ -1344,14 +1344,14 @@ void loop() {
       <section aria-labelledby="demo-title">
         <h2 id="demo-title"><span class="section-number">09</span>실제 동작</h2>
         <figure class="media-figure" id="videoFigure" hidden>
-          <video controls playsinline preload="metadata" poster="assets/p5-led-slider-poster.jpg" aria-label="p5 슬라이더로 LED 밝기를 조절하는 실제 동작 영상">
+          <video controls playsinline preload="metadata" poster="assets/p5-led-slider-poster.jpg" aria-label="p5 슬라이더로 파랑 LED 밝기를 조절하는 실제 동작 영상">
             <source src="assets/p5-led-slider.mp4" type="video/mp4">
           </video>
-          <figcaption>실제 동작 영상. 브라우저의 슬라이더를 움직이는 대로 D9의 LED2 밝기가 바뀐다.</figcaption>
+          <figcaption>실제 동작 영상(13초, 소리 없음). 노트북의 p5 화면에서 슬라이더를 올렸다 내리는 대로 브레드보드의 파랑 LED2(D9) 밝기가 따라 바뀐다. 영상 앞부분의 화면 맨 위(브라우저 탭과 북마크)는 흐리게 처리했다.</figcaption>
         </figure>
         <figure class="media-figure" id="photoFigure" hidden>
           <img class="photo" src="assets/p5-led-slider-screen.png" alt="p5 화면. 왼쪽에 LED1 토글 원, 가운데 가변저항 막대, 오른쪽에 LED2 밝기 세로 슬라이더가 있다.">
-          <figcaption>p5 화면. 오른쪽 세로 슬라이더가 이번에 더한 부분이다.</figcaption>
+          <figcaption>실제로 연결해 실행한 p5 화면. 오른쪽 세로 슬라이더가 이번에 더한 부분이고, 106에 두었을 때 위쪽 상태 줄에 마지막으로 보낸 <code>PWM:106</code>이 보인다.</figcaption>
         </figure>
         <p class="note" id="demoPending">실제 동작 영상과 화면은 촬영 후 이 자리에 올린다.</p>
       </section>

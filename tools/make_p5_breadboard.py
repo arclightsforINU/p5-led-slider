@@ -5,7 +5,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-LED2_COLOR = "Yellow (595nm)"
+LED2_COLOR = "Blue (470nm)"
 LED2_LABEL = "LED2 · D9 (PWM)"
 
 SVG = "http://www.w3.org/2000/svg"
